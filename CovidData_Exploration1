@@ -1,0 +1,148 @@
+-- SQL server: Big Query
+
+
+SELECT *
+FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+ORDER BY 3,4
+
+
+SELECT *
+FROM `portfolio-project1-375816.CovidData.CovidVaccinations`
+ORDER BY 3,4
+
+
+-- SELECT data that we are going to use
+
+
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+ORDER BY 1,2
+
+-- Looking at Total cases vs total deaths
+
+
+SELECT location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 as DeathPercentage
+FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+WHERE location like '%India%'
+ORDER BY 1,2
+
+
+-- Total cases vs Population
+-- Shows what percentage of population got infected
+
+
+SELECT location, date, total_cases, population, (total_cases/population)*100 as Infected_Percentage
+FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+WHERE location like '%India%'
+ORDER BY 1,2
+
+
+--Looking at countries with highest infection rate compared to population
+
+
+SELECT location, MAX(total_cases) as Highest_Infection_Count, population, MAX((total_cases/population))*100 as Infected_Percentage
+FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+GROUP BY location, population
+ORDER BY Infected_Percentage desc
+
+
+--Showing Countries with highest death count per population
+-- ADDING "continent is not null" to avoid grouped continent data
+
+
+SELECT location, MAX(cast(total_deaths as INT)) as Total_Death_Count
+FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+WHERE continent is not null
+GROUP BY location
+ORDER BY Total_Death_Count desc
+
+
+-- Continent data
+--Showing continent with highest deaths
+
+
+
+
+SELECT continent, MAX(cast(total_deaths as INT)) as Total_Death_Count
+FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+WHERE continent is not null
+GROUP BY continent
+ORDER BY Total_Death_Count desc
+
+
+--GLOBAL NUMBERS DATE BASIS
+
+
+SELECT date, SUM(new_cases) as Total_New_Cases, SUM(new_deaths) as Total_New_Deaths, (SUM(new_deaths)/SUM(new_cases))*100 as Death_rate
+FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+WHERE continent is not null
+GROUP BY date
+ORDER BY 1,2
+
+
+--GLOBAL NUMBERS DATE BASIS(tallied)
+
+
+SELECT SUM(new_cases) as Total_New_Cases, SUM(new_deaths) as Total_New_Deaths, (SUM(new_deaths)/SUM(new_cases))*100 as Death_rate
+FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+WHERE continent is not null
+ORDER BY 1,2
+
+
+
+
+
+
+
+
+-- JOINING 2 tables
+-- Looking at total population vs vaccination
+
+
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
+SUM(vac.new_vaccinations) OVER (partition by dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
+FROM `portfolio-project1-375816.CovidData.CovidDeaths` dea
+JOIN `portfolio-project1-375816.CovidData.CovidVaccinations` vac
+ ON dea.location = vac.location
+ and dea.date = vac.date
+WHERE dea.continent is not null
+ORDER BY 2,3
+
+
+--Using Common Table Expression (CTE) and then viewing
+
+--USING CTE TO FIND % of population that got vaccinated
+
+
+WITH PopvsVac AS (
+ SELECT
+   dea.continent,
+   dea.location,
+   dea.date,
+   dea.population,
+   vac.new_vaccinations,
+   SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
+ FROM `portfolio-project1-375816.CovidData.CovidDeaths` dea
+ JOIN `portfolio-project1-375816.CovidData.CovidVaccinations` vac
+   ON dea.location = vac.location
+   AND dea.date = vac.date
+)
+SELECT *, (RollingPeopleVaccinated/population)*100 as Pop_per_Vaccinated
+FROM PopvsVac
+
+--Creating VIEW
+
+
+CREATE VIEW portfolio-project1-375816.CovidData.PopvsVac AS
+SELECT
+ dea.continent,
+ dea.location,
+ dea.date,
+ dea.population,
+ vac.new_vaccinations,
+ SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
+FROM `portfolio-project1-375816.CovidData.CovidDeaths` dea
+JOIN `portfolio-project1-375816.CovidData.CovidVaccinations` vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
