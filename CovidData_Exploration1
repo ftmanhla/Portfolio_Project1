@@ -2,12 +2,12 @@
 
 
 SELECT *
-FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+FROM `portfolio-project1.CovidData.CovidDeaths`
 ORDER BY 3,4
 
 
 SELECT *
-FROM `portfolio-project1-375816.CovidData.CovidVaccinations`
+FROM `portfolio-project1.CovidData.CovidVaccinations`
 ORDER BY 3,4
 
 
@@ -15,14 +15,14 @@ ORDER BY 3,4
 
 
 SELECT location, date, total_cases, new_cases, total_deaths, population
-FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+FROM `portfolio-project1.CovidData.CovidDeaths`
 ORDER BY 1,2
 
 -- Looking at Total cases vs total deaths
 
 
 SELECT location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 as DeathPercentage
-FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+FROM `portfolio-project1.CovidData.CovidDeaths`
 WHERE location like '%India%'
 ORDER BY 1,2
 
@@ -32,7 +32,7 @@ ORDER BY 1,2
 
 
 SELECT location, date, total_cases, population, (total_cases/population)*100 as Infected_Percentage
-FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+FROM `portfolio-project1.CovidData.CovidDeaths`
 WHERE location like '%India%'
 ORDER BY 1,2
 
@@ -41,7 +41,7 @@ ORDER BY 1,2
 
 
 SELECT location, MAX(total_cases) as Highest_Infection_Count, population, MAX((total_cases/population))*100 as Infected_Percentage
-FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+FROM `portfolio-project1.CovidData.CovidDeaths`
 GROUP BY location, population
 ORDER BY Infected_Percentage desc
 
@@ -51,7 +51,7 @@ ORDER BY Infected_Percentage desc
 
 
 SELECT location, MAX(cast(total_deaths as INT)) as Total_Death_Count
-FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+FROM `portfolio-project1.CovidData.CovidDeaths`
 WHERE continent is not null
 GROUP BY location
 ORDER BY Total_Death_Count desc
@@ -64,7 +64,7 @@ ORDER BY Total_Death_Count desc
 
 
 SELECT continent, MAX(cast(total_deaths as INT)) as Total_Death_Count
-FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+FROM `portfolio-project1.CovidData.CovidDeaths`
 WHERE continent is not null
 GROUP BY continent
 ORDER BY Total_Death_Count desc
@@ -74,7 +74,7 @@ ORDER BY Total_Death_Count desc
 
 
 SELECT date, SUM(new_cases) as Total_New_Cases, SUM(new_deaths) as Total_New_Deaths, (SUM(new_deaths)/SUM(new_cases))*100 as Death_rate
-FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+FROM `portfolio-project1.CovidData.CovidDeaths`
 WHERE continent is not null
 GROUP BY date
 ORDER BY 1,2
@@ -84,9 +84,10 @@ ORDER BY 1,2
 
 
 SELECT SUM(new_cases) as Total_New_Cases, SUM(new_deaths) as Total_New_Deaths, (SUM(new_deaths)/SUM(new_cases))*100 as Death_rate
-FROM `portfolio-project1-375816.CovidData.CovidDeaths`
+FROM `portfolio-project1.CovidData.CovidDeaths`
 WHERE continent is not null
 ORDER BY 1,2
+
 
 
 
@@ -101,8 +102,8 @@ ORDER BY 1,2
 
 SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
 SUM(vac.new_vaccinations) OVER (partition by dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
-FROM `portfolio-project1-375816.CovidData.CovidDeaths` dea
-JOIN `portfolio-project1-375816.CovidData.CovidVaccinations` vac
+FROM `portfolio-project1.CovidData.CovidDeaths` dea
+JOIN `portfolio-project1.CovidData.CovidVaccinations` vac
  ON dea.location = vac.location
  and dea.date = vac.date
 WHERE dea.continent is not null
@@ -122,14 +123,13 @@ WITH PopvsVac AS (
    dea.population,
    vac.new_vaccinations,
    SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
- FROM `portfolio-project1-375816.CovidData.CovidDeaths` dea
- JOIN `portfolio-project1-375816.CovidData.CovidVaccinations` vac
+ FROM `portfolio-project1.CovidData.CovidDeaths` dea
+ JOIN `portfolio-project1.CovidData.CovidVaccinations` vac
    ON dea.location = vac.location
    AND dea.date = vac.date
 )
 SELECT *, (RollingPeopleVaccinated/population)*100 as Pop_per_Vaccinated
 FROM PopvsVac
-
 --Creating VIEW
 
 
@@ -141,8 +141,85 @@ SELECT
  dea.population,
  vac.new_vaccinations,
  SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
-FROM `portfolio-project1-375816.CovidData.CovidDeaths` dea
-JOIN `portfolio-project1-375816.CovidData.CovidVaccinations` vac
+FROM `portfolio-project1.CovidData.CovidDeaths` dea
+JOIN `portfolio-project1.CovidData.CovidVaccinations` vac
 ON dea.location = vac.location
 AND dea.date = vac.date
 WHERE dea.continent IS NOT NULL
+
+
+
+For any other server other than BigQuery,
+
+WITH PopvsVac 
+(continent, location, date, population, new_vaccinations, RollingPeopleVaccinated ) AS 
+(
+SELECT
+ dea.continent,
+ dea.location,
+ dea.date,
+ dea.population,
+ vac.new_vaccinations,
+ SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
+FROM `portfolio-project1.CovidData.CovidDeaths` dea
+JOIN `portfolio-project1.CovidData.CovidVaccinations` vac
+ ON dea.location = vac.location
+ and dea.date = vac.date
+WHERE dea.continent is not null
+)
+SELECT *, (RollingPeopleVaccinated/population)*100 as Pop_per_Vaccinated
+FROM PopvsVac
+
+
+
+
+Using Temp Table
+
+--USING CTE TO FIND % of population that got vaccinated
+
+
+DROP TABLE IF EXISTS #PercentPopulationVaccinated
+CREATE TABLE #PercentPopulationVaccinated
+(
+continent nvarchar(255),
+location nvarchar(255),
+date datetime,
+population numeric,
+new_vaccinations numeric,
+RollingPeopleVaccinated numeric
+)
+
+
+INSERT INTO #PercentPopulationVaccinated
+SELECT
+ dea.continent,
+ dea.location,
+ dea.date,
+ dea.population,
+ vac.new_vaccinations,
+ SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
+FROM `portfolio-project1.CovidData.CovidDeaths` dea
+JOIN `portfolio-project1.CovidData.CovidVaccinations` vac
+ ON dea.location = vac.location
+ and dea.date = vac.date
+--WHERE dea.continent is not null;
+
+
+SELECT *, (RollingPeopleVaccinated/population)*100 as Pop_per_Vaccinated
+FROM #PercentPopulationVaccinated
+
+
+CREATE VIEW PopvsVac
+AS SELECT
+ dea.continent,
+ dea.location,
+ dea.date,
+ dea.population,
+ vac.new_vaccinations,
+ SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
+FROM `portfolio-project1.CovidData.CovidDeaths` dea
+JOIN `portfolio-project1.CovidData.CovidVaccinations` vac
+ ON dea.location = vac.location
+ and dea.date = vac.date
+WHERE dea.continent is not null
+
